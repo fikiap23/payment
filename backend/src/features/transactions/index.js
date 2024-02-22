@@ -2,7 +2,11 @@ import { nanoid } from 'nanoid'
 import { transactionService } from './transactions.service.js'
 import { reformTransaction } from '../../utils/reform-transaction.js'
 import { productService } from '../products/products.service.js'
-import { PENDING_PAYMENT } from '../../utils/constant.js'
+import {
+  FRONT_END_URL,
+  MIDTRANS_APP_URL,
+  PENDING_PAYMENT,
+} from '../../utils/constant.js'
 
 export const createTransaction = async (req, res) => {
   const { products, customer_name, customer_email } = req.body
