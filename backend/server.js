@@ -7,7 +7,7 @@ app.get('/', (req, res) => {
   res.send('Hello World!')
 })
 
-app.use(paymentRouter)
+app.use('/api/payment', paymentRouter)
 
 app.listen(PORT, () => {
   console.log(`server running on http://localhost:${PORT}`)
