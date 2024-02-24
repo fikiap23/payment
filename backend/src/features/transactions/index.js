@@ -5,8 +5,10 @@ import { productService } from '../products/products.service.js'
 import {
   FRONT_END_URL,
   MIDTRANS_APP_URL,
+  MIDTRANS_SERVER_KEY,
   PENDING_PAYMENT,
 } from '../../utils/constant.js'
+import crypto from 'crypto'
 
 export const createTransaction = async (req, res) => {
   const { products, customer_name, customer_email } = req.body
@@ -33,8 +35,7 @@ export const createTransaction = async (req, res) => {
     0
   )
 
-  // Integration with payment gateway
-  const authString = btoa(`${process.env.MIDTRANS_SERVER_KEY}:`)
+  const authString = btoa(`${MIDTRANS_SERVER_KEY}:`)
 
   const payload = {
     transaction_details: {
@@ -53,8 +54,8 @@ export const createTransaction = async (req, res) => {
     },
     callbacks: {
       finish: `${FRONT_END_URL}/order-status?transaction_id=${transaction_id}`,
-      cancel: `${FRONT_END_URL}/order-status?transaction_id=${transaction_id}`,
       error: `${FRONT_END_URL}/order-status?transaction_id=${transaction_id}`,
+      pending: `${FRONT_END_URL}/order-status?transaction_id=${transaction_id}`,
     },
   }
 
@@ -69,10 +70,11 @@ export const createTransaction = async (req, res) => {
   })
 
   const data = await response.json()
+
   if (response.status !== 201) {
     return res.status(500).json({
       status: 'error',
-      message: 'failed to create transaction',
+      message: 'Failed to create transaction',
     })
   }
 
@@ -145,5 +147,84 @@ export const updateTransactionStatus = async (req, res) => {
   res.json({
     status: 'success',
     data: transaction,
+  })
+}
+
+const updateStatusBasedOnMidtransResponse = async (transaction_id, data) => {
+  const hash = crypto
+    .createHash('sha512')
+    .update(
+      `${transaction_id}${data.status_code}${data.gross_amount}${MIDTRANS_SERVER_KEY}`
+    )
+    .digest('hex')
+  if (data.signature_key !== hash) {
+    return {
+      status: 'error',
+      message: 'Invalid Signature key',
+    }
+  }
+
+  let responseData = null
+  let transactionStatus = data.transaction_status
+  let fraudStatus = data.fraud_status
+
+  if (transactionStatus == 'capture') {
+    if (fraudStatus == 'accept') {
+      const transaction = await transactionService.updateTransactionStatus({
+        transaction_id,
+        status: PAID,
+        payment_method: data.payment_type,
+      })
+      responseData = transaction
+    }
+  } else if (transactionStatus == 'settlement') {
+    const transaction = await transactionService.updateTransactionStatus({
+      transaction_id,
+      status: PAID,
+      payment_method: data.payment_type,
+    })
+    responseData = transaction
+  } else if (
+    transactionStatus == 'cancel' ||
+    transactionStatus == 'deny' ||
+    transactionStatus == 'expire'
+  ) {
+    const transaction = await transactionService.updateTransactionStatus({
+      transaction_id,
+      status: CANCELED,
+    })
+    responseData = transaction
+  } else if (transactionStatus == 'pending') {
+    const transaction = await transactionService.updateTransactionStatus({
+      transaction_id,
+      status: PENDING_PAYMENT,
+    })
+    responseData = transaction
+  }
+
+  return {
+    status: 'success',
+    data: responseData,
+  }
+}
+
+export const trxNotif = async (req, res) => {
+  const data = req.body
+
+  transactionService
+    .getTransactionById({ transaction_id: data.order_id })
+    .then((transaction) => {
+      if (transaction) {
+        updateStatusBasedOnMidtransResponse(transaction.id, data).then(
+          (result) => {
+            console.log('result', result)
+          }
+        )
+      }
+    })
+
+  res.status(200).json({
+    status: 'success',
+    message: 'OK',
   })
 }
