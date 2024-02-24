@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MIDTRANS_API_URL, MIDTRANS_CLIENT_ID } from '../utils/const'
 
 const useSnap = () => {
   const [snap, setSnap] = useState(null)
+
   useEffect(() => {
     const myMidtransClientKey = MIDTRANS_CLIENT_ID
     const script = document.createElement('script')
@@ -17,25 +18,26 @@ const useSnap = () => {
       document.body.removeChild(script)
     }
   }, [])
+
   const snapEmbed = (snap_token, embedId, action) => {
     if (snap) {
       snap.embed(snap_token, {
         embedId,
-        onSuccess: (result) => {
+        onSuccess: function (result) {
           console.log('success', result)
           action.onSuccess(result)
         },
-        onPending: (result) => {
+        onPending: function (result) {
           console.log('pending', result)
           action.onPending(result)
         },
-        onClose: (result) => {
-          console.log('close', result)
-          action.onClose(result)
+        onClose: function () {
+          action.onClose()
         },
       })
     }
   }
+
   return { snapEmbed }
 }
 

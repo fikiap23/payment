@@ -18,7 +18,6 @@ function Checkout() {
     email: '',
   })
   const [snapShow, setSnapShow] = useState(false)
-
   const { snapEmbed } = useSnap()
 
   const getCart = useCallback(async () => {
@@ -63,17 +62,17 @@ function Checkout() {
       // navigate(`/order-status?transaction_id=${response.data.id}`)
       setSnapShow(true)
       snapEmbed(response.data.snap_token, 'snap-container', {
-        onSuccess: (result) => {
+        onSuccess: function (result) {
           console.log('success', result)
           navigate(`/order-status?transaction_id=${response.data.id}`)
           setSnapShow(false)
         },
-        onPending: (result) => {
+        onPending: function (result) {
           console.log('pending', result)
           navigate(`/order-status?transaction_id=${response.data.id}`)
           setSnapShow(false)
         },
-        onClose: () => {
+        onClose: function () {
           navigate(`/order-status?transaction_id=${response.data.id}`)
           setSnapShow(false)
         },
@@ -129,7 +128,6 @@ function Checkout() {
           </div>
         </>
       )}
-
       <div id="snap-container"></div>
     </Layout>
   )
